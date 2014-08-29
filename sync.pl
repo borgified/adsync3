@@ -2,6 +2,7 @@
 
 use warnings;
 use strict;
+use Data::Dumper;
 
 sub main{
 
@@ -14,10 +15,34 @@ sub main{
 
 sub parseITRPT{
 	my $file = shift;
-	print $file;
+	my $data = slurp($file);
+
+	#first line is the header
+	my @lines = split(/\n/,$data);
+	my $header = shift(@lines);
+
+	my @keys = split(/,/,$header);
+
+	my %employee;
+
+	foreach my $line (@lines){
+		my @values = split(/,/,$line);
+		for(my $x=0;$x < $#keys;$x++){
+			$employee{$values[3]}{$keys[$x]}=$values[$x];
+		}
+	}
+
+	print Dumper($employee{100251});
 }
 
-
+sub slurp {
+	my $file = shift;
+	open my $fh, '<', $file or die;
+	local $/ = undef;
+	my $cont = <$fh>;
+	close $fh;
+	return $cont;
+}
 
 
 
