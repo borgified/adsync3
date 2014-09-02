@@ -19,7 +19,7 @@ sub main{
 
 	print Dumper($$employee_hashref{100251});
 
-	#gather dn data
+	#gather dn data from AD
 	my $dn = &dn_lookup;
 
 	#store dn information in $employee_hashref (this is for manager lookup, used later)
