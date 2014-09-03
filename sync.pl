@@ -17,12 +17,13 @@ sub main{
 	#populate $employee_hashref with ITRPT data
 	my $employee_hashref = &parseITRPT($itrpt);
 
-	print Dumper($$employee_hashref{100251});
+	#picked 100648 because this employee's dn has special accent mark, make sure script handles utf8 properly
+	print Dumper($$employee_hashref{100648});
 
 	#gather dn data from AD
 	my $dn = &dn_lookup;
 
-	#store dn information in $employee_hashref (this is for manager lookup, used later)
+	#store dn information into $employee_hashref (this is for manager lookup, used later)
 	foreach my $key (keys(%$employee_hashref)){
 
 		if(exists($$dn{$$employee_hashref{$key}->{'Work Email'}})){
@@ -32,7 +33,7 @@ sub main{
 		}
 	}
 
-	print Dumper($$employee_hashref{100251});
+	print Dumper($$employee_hashref{100648});
 
 	#time to do comparisons and updates
 
@@ -40,7 +41,7 @@ sub main{
 &main;
 
 sub dn_lookup{
-	#output: \%hash{mail}=dn of every account in AD
+	#output: \%hash{mail}=dn of every account in AD (based on filter)
 
 	my %config = do '/secret/actian.config';
 
@@ -56,7 +57,7 @@ sub dn_lookup{
 	my @args = ( 
 		base     => $config{'base'},
 		scope    => "subtree",
-		filter   => "(mail=*)",
+		filter   => "(&(samAccountType=805306368)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=*))",
 		control  => [ $page ],
 	);
 
