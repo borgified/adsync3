@@ -35,6 +35,8 @@ sub main{
 
 	print Dumper($$employee_hashref{100648});
 
+	print Dumper($$ad{$$employee_hashref{100648}->{'Work Email'}});
+
 	#time to do comparisons and updates
 
 }
@@ -97,7 +99,26 @@ sub ad_lookup{
 
 			#print "$mail $dn\n";
 			if(!exists($adlib{$mail}{'dn'})){
-				$adlib{lc($mail)}{'dn'}=$dn;
+				$mail=lc($mail);
+
+				$adlib{$mail}{'dn'}=$dn;
+				$adlib{$mail}{'title'}=$title;
+				$adlib{$mail}{'dept'}=$dept;
+				$adlib{$mail}{'desc'}=$desc;
+				$adlib{$mail}{'sam'}=$sam;
+				$adlib{$mail}{'givenName'}=$givenName;
+				$adlib{$mail}{'sn'}=$sn;
+				$adlib{$mail}{'displayname'}=$displayname;
+				$adlib{$mail}{'company'}=$company;
+				$adlib{$mail}{'c'}=$c;
+				$adlib{$mail}{'st'}=$st;
+				$adlib{$mail}{'physicalDeliveryOfficeName'}=$physicalDeliveryOfficeName;
+				$adlib{$mail}{'telephoneNumber'}=$telephoneNumber;
+				$adlib{$mail}{'facsimileTelephoneNumber'}=$facsimileTelephoneNumber;
+				$adlib{$mail}{'manager'}=$manager;
+				$adlib{$mail}{'l'}=$l;
+				$adlib{$mail}{'upn'}=$upn;
+				$adlib{$mail}{'name'}=$name;
 			}else{
 				warn "warning: already encountered $mail (can be ignored if not an actual user account)
 				\texisting value: $adlib{$mail}{'dn'}
