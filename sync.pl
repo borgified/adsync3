@@ -20,14 +20,14 @@ sub main{
 	#picked 100648 because this employee's dn has special accent mark, make sure script handles utf8 properly
 	print Dumper($$employee_hashref{100648});
 
-	#gather dn data from AD
-	my $dn = &dn_lookup;
+	#gather ad data from AD
+	my $ad = &ad_lookup;
 
 	#store dn information into $employee_hashref (this is for manager lookup, used later)
 	foreach my $key (keys(%$employee_hashref)){
 
-		if(exists($$dn{$$employee_hashref{$key}->{'Work Email'}})){
-			$$employee_hashref{$key}->{'dn'}=$$dn{$$employee_hashref{$key}->{'Work Email'}};
+		if(exists($$ad{$$employee_hashref{$key}->{'Work Email'}}{'dn'})){
+			$$employee_hashref{$key}->{'dn'}=$$ad{$$employee_hashref{$key}->{'Work Email'}}{'dn'};
 		}else{
 			warn "couldn't look up $$employee_hashref{$key}->{'Work Email'}\n";
 		}
@@ -40,8 +40,8 @@ sub main{
 }
 &main;
 
-sub dn_lookup{
-	#output: \%hash{mail}=dn of every account in AD (based on filter)
+sub ad_lookup{
+	#output: \%hash{mail}{<category>}=dn of every account in AD (based on filter)
 
 	my %config = do '/secret/actian.config';
 
@@ -62,7 +62,7 @@ sub dn_lookup{
 	);
 
 	my $cookie;
-	my %dnlib;
+	my %adlib;
 
 	while(1){
 		my $mesg = $ldap->search( @args );
@@ -73,12 +73,34 @@ sub dn_lookup{
 			my $dn = defined($_->get_value('distinguishedName')) ? $_->get_value('distinguishedName') : "none";
 			my $mail = defined($_->get_value('mail')) ? $_->get_value('mail') : "none";
 
+
+			my $title = defined($_->get_value('title')) ? $_->get_value('title') : "none";
+			my $dept = defined($_->get_value('department')) ? $_->get_value('department') : "none";
+			my $desc = defined($_->get_value('description')) ? $_->get_value('description') : "none";
+			my $sam = defined($_->get_value('samaccountname')) ? $_->get_value('samaccountname') : "none";
+			my $givenName = defined($_->get_value('givenName')) ? $_->get_value('givenName') : "none";
+			my $sn = defined($_->get_value('sn')) ? $_->get_value('sn') : "none";
+			my $displayname = defined($_->get_value('displayname')) ? $_->get_value('displayname') : "none";
+			my $company = defined($_->get_value('company')) ? $_->get_value('company') : "none";
+			my $c = defined($_->get_value('c')) ? $_->get_value('c') : "none";
+			my $st = defined($_->get_value('st')) ? $_->get_value('st') : "none";
+			my $physicalDeliveryOfficeName = defined($_->get_value('physicalDeliveryOfficeName')) ? $_->get_value('physicalDeliveryOfficeName') : "none";
+			my $telephoneNumber = defined($_->get_value('telephoneNumber')) ? $_->get_value('telephoneNumber') : "none";
+			my $facsimileTelephoneNumber = defined($_->get_value('facsimileTelephoneNumber')) ? $_->get_value('facsimileTelephoneNumber') : "none";
+			my $manager = defined($_->get_value('manager')) ? $_->get_value('manager') : "none";
+			my $l = defined($_->get_value('l')) ? $_->get_value('l') : "none";
+			my $upn = defined($_->get_value('userprincipalname')) ? $_->get_value('userprincipalname') : "none";
+			my $name = defined($_->get_value('name')) ? $_->get_value('name') : "none";
+
+
+
+
 			#print "$mail $dn\n";
-			if(!exists($dnlib{$mail})){
-				$dnlib{lc($mail)}=$dn;
+			if(!exists($adlib{$mail}{'dn'})){
+				$adlib{lc($mail)}{'dn'}=$dn;
 			}else{
 				warn "warning: already encountered $mail (can be ignored if not an actual user account)
-				\texisting value: $dnlib{$mail}
+				\texisting value: $adlib{$mail}{'dn'}
 				\tnew value     : $dn\n\n";
 			}
 		}
@@ -100,7 +122,7 @@ sub dn_lookup{
 		$ldap->search( @args );
 	}
 
-	return \%dnlib;
+	return \%adlib;
 }
 
 sub parseITRPT{
