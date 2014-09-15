@@ -30,6 +30,8 @@ sub main{
 			$$employee_hashref{$key}->{'dn'}=$$ad{$$employee_hashref{$key}->{'Work Email'}}{'dn'};
 		}else{
 			warn "couldn't look up $$employee_hashref{$key}->{'Work Email'}\n";
+			warn "check to see if this account is disabled in AD\n";
+			<>;
 		}
 	}
 
@@ -61,32 +63,136 @@ sub main{
 
 		print "processing $$employee_hashref{$eid}->{'Work Email'}\n";
 
-		if($$employee_hashref{$eid}->{'First Name'} eq $$employee_hashref{$eid}->{'Preferred Name'}){
-			if($$employee_hashref{$eid}->{'First Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}){
-				print "ITRPT(First Name): $$employee_hashref{$eid}->{'First Name'}\n";
-				print "AD(givenName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}\n";
-				print "AD(displayName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}\n";
-			}
-		}else{
-			if($$employee_hashref{$eid}->{'Preferred Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}){
-				print "ITRPT(Preferred Name): $$employee_hashref{$eid}->{'Preferred Name'}\n";
-				print "AD(givenName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}\n";
-				print "AD(displayName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}\n";
-			}
+		my $itrpt_fn = $$employee_hashref{$eid}->{'First Name'};
+		my $itrpt_pn = $$employee_hashref{$eid}->{'Preferred Name'};
+		my $ad_gn = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'} : "givenName not found in AD";
+		my $ad_dn = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'} : "displayName not found in AD";
+
+		#skip this user if hes not even able to be found in AD (this account is probably disabled)
+		if($ad_gn eq 'givenName not found in AD'){
+			print "skipping $$employee_hashref{$eid}->{'Work Email'}\nreason: $ad_gn\n";
+			print "==================================\n";	
+			<>;
+			next;
 		}
 
-#		if($$employee_hashref{$eid}->{'First Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}){
-#			print "ITRPT(First Name): $$employee_hashref{$eid}->{'First Name'}\n";
-#			print "AD(givenName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}\n";
-#		}
+		######NAME
+
+		#for most people their first name and pref name are the same
+		if($itrpt_fn eq $itrpt_pn){
+			print "fn and pn same\n";
+			#let's check to make sure that their givenname in ad matches as well
+			if($itrpt_fn eq $ad_gn){
+				print "fn and gn same\n";
+				#all checks out, no changes needed
+			}else{
+				#we need to make them the same:
+				print "ITRPT(First Name): $itrpt_fn\n";
+				print "AD(givenName): $ad_gn\n";
+				print "AD(displayName): $ad_dn\n";
+				print "not implemented yet: you must make this change manually in AD\n";
+				<>;
+			}
+
+		}else{
+			print "fn and pn differ\n";
+			#there are a handful of people who want to use an alternate name (pref name)
+			
+			#see if they are already using the alternate name in ad (eg. itrpt_pref name = ad_displayname)
+			#however displayname contains their entire name (first middle last), so we have to pop out the first name
+			#to make the comparison with itrpt's pref name
+			my @ad_dn = split (/ /,$ad_dn);
+			my $ad_dn_fn = shift(@ad_dn);
+			if($itrpt_pn eq $ad_dn_fn){
+				#good, this user is already using preferred name in their displayname
+				print "pn and first portion in display name are same: $itrpt_pn : $ad_dn\n";
+			}else{
+				#we must make changes to their displayname so that it uses the pref name
+				print "ITRPT(Pref Name): $itrpt_pn\n";
+				print "AD(givenName): $ad_gn\n";
+				print "AD(displayName): $ad_dn\n";
+				print "not implemented yet: you must make this change manually in AD\n";
+				<>;
+			}
+
+		}
+
+		######JOB TITLE
+
+		my $itrpt_jt = $$employee_hashref{$eid}->{'Job title'};
+		my $ad_title = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'title'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'title'} : "title not found in AD";
+
+		if($itrpt_jt ne $ad_title){
+			print "ITRPT(Job Title): $itrpt_jt\n";
+			print "AD(title): $ad_title\n";
+			print "not implemented yet: you must make this change manually in AD\n";
+			<>;
+		}
+
+		######Business Unit: company
+
+		my $itrpt_bu = $$employee_hashref{$eid}->{'Business Unit'};
+		my $ad_co = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'company'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'company'} : "company not found in AD";
+
+
+		if($itrpt_bu ne $ad_co){
+			print "ITRPT(Business Unit): $itrpt_bu\n";
+			print "AD(company): $ad_co\n";
+			print "not implemented yet: you must make this change manually in AD\n";
+			<>;
+		}
+
+
+		######Home Department: department.description
+
+
+		my $itrpt_hd = $$employee_hashref{$eid}->{'Home Department'};
+		my $ad_dept = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'dept'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'dept'} : "dept not found in AD";
+		my $ad_desc = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'desc'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'desc'} : "desc not found in AD";
+
+		#the itrpt 'Home Department' field is made up of two components. 1. dept and 2. desc. these two components are joined by a dot.
+		#we'll split up the 'Home Department' field and check that the corresponding entries in AD match
+	
+		my $number_of_dots = split(/\./,$itrpt_hd);
+
+		my $itrpt_hd_dept;
+		my $itrpt_hd_desc;
+		if($number_of_dots == 2){
+			$itrpt_hd_dept = $itrpt_hd;
+			$itrpt_hd_desc = "none";
+		}elsif($number_of_dots == 3){
+			$itrpt_hd=~/(.*\..*)\.(.*)/;
+			$itrpt_hd_dept = $1;
+			$itrpt_hd_desc = $2;
+		}else{
+			die "unrecognized Home Department format: $itrpt_hd\n";
+		}
+
+
+		if($itrpt_hd_dept ne $ad_dept){
+			print "ITRPT(Home Department (dept)): $itrpt_hd_dept\n";
+			print "AD(dept): $ad_dept\n";
+			print "not implemented yet: you must make this change manually in AD\n";
+			<>;
+		}
 		
-#		if($$employee_hashref{$eid}->{'Preferred Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}){
-#			print "ITRPT(Preferred Name): $$employee_hashref{$eid}->{'Preferred Name'}\n";
-#			print "AD(displayname): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}\n";
-#		}
+		if($itrpt_hd_desc ne $ad_desc){
+			print "ITRPT(Home Department (desc)): $itrpt_hd_desc\n";
+			print "AD(desc): $ad_desc\n";
+			print "not implemented yet: you must make this change manually in AD\n";
+			<>;
+		}
+
+
+
+
+
+
+
+
+
 		print "==================================\n";	
 	}
-
 }
 &main;
 
