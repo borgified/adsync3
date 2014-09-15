@@ -39,6 +39,54 @@ sub main{
 
 	#time to do comparisons and updates
 
+	#mappings CSV:AD
+	#
+	#First Name: givenName = ('First Name' eq 'Preferred Name') ? 'First Name' : 'Preferred Name'  
+	#Preferred Name: 
+	#Last Name: sn
+	#Employee Id: employeeID
+	#Job title: title
+	#Business Unit: company
+	#Home Department: department.description
+	#Location: c-st-physicalDeliveryOfficeName
+	#Work Phone: telephoneNumber
+	#Work Fax: facsimileTelephoneNumber
+	#Work Email: mail
+	#Manager ID: none but will be linked to manager
+	#Mngr. FName: ignored
+	#Mngr. MName: ignored
+	#Mngr. LName: ignored
+
+	foreach my $eid (sort keys(%$employee_hashref)){
+
+		print "processing $$employee_hashref{$eid}->{'Work Email'}\n";
+
+		if($$employee_hashref{$eid}->{'First Name'} eq $$employee_hashref{$eid}->{'Preferred Name'}){
+			if($$employee_hashref{$eid}->{'First Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}){
+				print "ITRPT(First Name): $$employee_hashref{$eid}->{'First Name'}\n";
+				print "AD(givenName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}\n";
+				print "AD(displayName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}\n";
+			}
+		}else{
+			if($$employee_hashref{$eid}->{'Preferred Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}){
+				print "ITRPT(Preferred Name): $$employee_hashref{$eid}->{'Preferred Name'}\n";
+				print "AD(givenName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}\n";
+				print "AD(displayName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}\n";
+			}
+		}
+
+#		if($$employee_hashref{$eid}->{'First Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}){
+#			print "ITRPT(First Name): $$employee_hashref{$eid}->{'First Name'}\n";
+#			print "AD(givenName): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'givenName'}\n";
+#		}
+		
+#		if($$employee_hashref{$eid}->{'Preferred Name'} ne $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}){
+#			print "ITRPT(Preferred Name): $$employee_hashref{$eid}->{'Preferred Name'}\n";
+#			print "AD(displayname): $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'displayname'}\n";
+#		}
+		print "==================================\n";	
+	}
+
 }
 &main;
 
