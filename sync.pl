@@ -7,6 +7,7 @@ use Data::Dumper;
 use Net::LDAPS;
 use Net::LDAP::Control::Paged;
 use Net::LDAP::Constant qw( LDAP_CONTROL_PAGED );
+use Locale::Country;
 
 use Text::CSV;
 
@@ -97,7 +98,7 @@ sub main{
 		}else{
 			print "fn and pn differ\n";
 			#there are a handful of people who want to use an alternate name (pref name)
-			
+
 			#see if they are already using the alternate name in ad (eg. itrpt_pref name = ad_displayname)
 			#however displayname contains their entire name (first middle last), so we have to pop out the first name
 			#to make the comparison with itrpt's pref name
@@ -132,13 +133,13 @@ sub main{
 		######Business Unit: company
 
 		my $itrpt_bu = $$employee_hashref{$eid}->{'Business Unit'};
-		my $ad_co = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'company'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'company'} : "company not found in AD";
+		my $ad_comp = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'company'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'company'} : "company not found in AD";
 
 
-		if($itrpt_bu ne $ad_co){
+		if($itrpt_bu ne $ad_comp){
 			print "ITRPT(Business Unit): $itrpt_bu\n";
-			print "AD(company): $ad_co\n";
-			print "not implemented yet: you must make this change manually in AD\n";
+			print "AD(company): $ad_comp (should be $itrpt_bu)\n";
+			print "mismatch detected: you must make this change manually in AD\n";
 			<>;
 		}
 
@@ -152,7 +153,7 @@ sub main{
 
 		#the itrpt 'Home Department' field is made up of two components. 1. dept and 2. desc. these two components are joined by a dot.
 		#we'll split up the 'Home Department' field and check that the corresponding entries in AD match
-	
+
 		my $number_of_dots = split(/\./,$itrpt_hd);
 
 		my $itrpt_hd_dept;
@@ -172,21 +173,139 @@ sub main{
 		if($itrpt_hd_dept ne $ad_dept){
 			print "ITRPT(Home Department (dept)): $itrpt_hd_dept\n";
 			print "AD(dept): $ad_dept\n";
-			print "not implemented yet: you must make this change manually in AD\n";
+			print "mismatch detected: you must make this change manually in AD\n";
 			<>;
 		}
-		
+
 		if($itrpt_hd_desc ne $ad_desc){
 			print "ITRPT(Home Department (desc)): $itrpt_hd_desc\n";
 			print "AD(desc): $ad_desc\n";
-			print "not implemented yet: you must make this change manually in AD\n";
+			print "mismatch detected: you must make this change manually in AD\n";
 			<>;
 		}
 
 
+		#Location: c-st-physicalDeliveryOfficeName
+		#
+		my $itrpt_loc = $$employee_hashref{$eid}->{'Location'};
+		my $ad_l = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'l'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'l'} : "l not found in AD";
+		my $ad_co = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'co'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'co'} : "co not found in AD";
+		my $ad_st = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'st'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'st'} : "st not found in AD";
+		my $ad_pdon = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'physicalDeliveryOfficeName'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'physicalDeliveryOfficeName'} : "physicalDeliveryOfficeName not found in AD";
 
 
+		#Location field comes in several formats depending on whether it contains 1 or 2 dashes. Here are all the different variations:
+		#Germany-Hamburg
+		#India-Remote
+		#UK-Slough
+		#US-Texas-Austin
+		#US-Ohio-Remote
+		#US-South Carolina
+		#US-New Mexico-Remote
+		#US-California-Redwood City (HQ)
 
+		#the data in location field maps to 4 entries in AD: co (country), st (state), l (city), physicalDeliveryOfficeName (office)
+		#following the prev example, here are the mappings:
+		#
+		#Germany-Hamburg										co=Germany, st=none, l=Hamburg, pdon=Hamburg
+		#India-Remote												co=India, st=none, l=none, pdon=Remote 
+		#UK-Slough													co=United Kingdom, st=none, l=Slough, pdon=Slough
+		#US-Texas-Austin										co=United States, st=Texas, l=Austin, pdon=Austin
+		#US-Ohio-Remote											co=United States, st=Ohio, l=none, pdon=Remote
+		#US-South Carolina									co=United States, st=South Carolina, l=none, pdon=South Carolina
+		#US-New Mexico-Remote								co=United States, st=New Mexico, l=none, pdon=Remote
+		#US-California-Redwood City (HQ)		co=United States, st=California, l=Redwood City, pdon=Redwood City (HQ)
+
+		#strat:
+		#how many dashes? 1 or 2
+		#
+		#1 dash:
+		#is first chunk 2 letters long (in country code)? if so, spell it out
+		#is first chunk 'US'? if so, st=second chunk, l=none, pdon=second chunk
+		#is second chunk 'Remote'? if so, st=l=none and pdon=Remote
+		#
+		#2 dashes:
+		#is first chunk 2 letters long (in country code)? if so, spell it out
+		#is third chunk 'Remote'? if so, l=none, pdon=Remote
+		#is third chunk 'Redwood City (HQ)'? if so , l=Redwood City, pdon=Redwood City (HQ)
+		
+		print "ITRPT(Location): $itrpt_loc\n";
+		print "AD(co): $ad_co\n";
+		print "AD(st): $ad_st\n";
+		print "AD(l): $ad_l\n";
+		print "AD(physicalDeliveryOfficeName): $ad_pdon\n";
+		<>;
+
+		my @count_dashes = split(//,$itrpt_loc);
+		my $count=0;
+		foreach my $char (@count_dashes){
+			if($char eq '-'){
+				$count++;
+			}
+		}
+
+		if($count == 1){
+			$itrpt_loc =~ /(.*)-(.*)/;
+
+			my $itrpt_loc_country = $1;
+			my $itrpt_loc_city = $2;
+
+			#if $itrpt_loc_country is in country code, convert it to full name for pattern matching
+		
+			#hack to make UK work. (UK isnt recognized in code2country but GB is)	
+			if($itrpt_loc_country eq 'UK'){
+				$itrpt_loc_country = 'GB';
+			}
+			
+			if($itrpt_loc_country =~ /\b\w\w\b/){
+				$itrpt_loc_country = code2country($itrpt_loc_country);
+				print "country has been converted: $itrpt_loc_country\n";
+			}
+
+
+			#check if data matches up
+			
+			if(($itrpt_loc_country eq $ad_co) && ($itrpt_loc_city eq $ad_pdon)&&($itrpt_loc_city eq $ad_l)){
+				#everything matches yay!
+			}else{
+				print "ITRPT(Location): $itrpt_loc\n";
+				print "AD(co): $ad_co (should be $itrpt_loc_country)\n";
+				print "AD(l): $ad_l (should be $itrpt_loc_city)\n";
+				print "AD(physicalDeliveryOfficeName): $ad_pdon (should be $itrpt_loc_city)\n";
+				print "mismatch detected: you must make this change manually in AD\n";
+				<>;
+			}
+
+		}elsif($count == 2){
+			$itrpt_loc =~ /(.*)-(.*)-(.*)/;
+
+			my $itrpt_loc_country = $1;
+			my $itrpt_loc_state = $2;
+			my $itrpt_loc_city = $3;
+
+			#if $itrpt_loc_country is in country code, convert it to full name for pattern matching
+			
+			if($itrpt_loc_country =~ /\b\w\w\b/){
+				$itrpt_loc_country = code2country($itrpt_loc_country);
+				print "country has been converted: $itrpt_loc_country\n";
+			}
+
+
+			if(($itrpt_loc_country eq $ad_co)&&($itrpt_loc_city eq $ad_pdon)&&($itrpt_loc_state eq $ad_st)&&($itrpt_loc_city eq $ad_l)){
+				#everything matches
+			}else{
+				print "ITRPT(Location): $itrpt_loc\n";
+				print "AD(co): $ad_co (should be $itrpt_loc_country)\n";
+				print "AD(st): $ad_st (should be $itrpt_loc_state)\n";
+				print "AD(l): $ad_l (should be $itrpt_loc_city)\n";
+				print "AD(physicalDeliveryOfficeName): $ad_pdon (should be $itrpt_loc_city)\n";
+				print "mismatch detected: you must make this change manually in AD\n";
+				<>;
+			}
+		}else{
+			print "Location field in ITRPT does not conform to known standard. Investigate ITRPT before continuing. $itrpt_loc\n";
+			<>;
+		}
 
 
 
@@ -239,6 +358,7 @@ sub ad_lookup{
 			my $displayname = defined($_->get_value('displayname')) ? $_->get_value('displayname') : "none";
 			my $company = defined($_->get_value('company')) ? $_->get_value('company') : "none";
 			my $c = defined($_->get_value('c')) ? $_->get_value('c') : "none";
+			my $co = defined($_->get_value('co')) ? $_->get_value('co') : "none";
 			my $st = defined($_->get_value('st')) ? $_->get_value('st') : "none";
 			my $physicalDeliveryOfficeName = defined($_->get_value('physicalDeliveryOfficeName')) ? $_->get_value('physicalDeliveryOfficeName') : "none";
 			my $telephoneNumber = defined($_->get_value('telephoneNumber')) ? $_->get_value('telephoneNumber') : "none";
@@ -265,6 +385,7 @@ sub ad_lookup{
 				$adlib{$mail}{'displayname'}=$displayname;
 				$adlib{$mail}{'company'}=$company;
 				$adlib{$mail}{'c'}=$c;
+				$adlib{$mail}{'co'}=$co;
 				$adlib{$mail}{'st'}=$st;
 				$adlib{$mail}{'physicalDeliveryOfficeName'}=$physicalDeliveryOfficeName;
 				$adlib{$mail}{'telephoneNumber'}=$telephoneNumber;
