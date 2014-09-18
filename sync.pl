@@ -60,9 +60,13 @@ sub main{
 	#Mngr. MName: ignored
 	#Mngr. LName: ignored
 
+	my $count=1;
+	my $total=scalar keys(%$employee_hashref);
+
 	foreach my $eid (sort keys(%$employee_hashref)){
 
-		print "processing $$employee_hashref{$eid}->{'Work Email'}\n";
+		print "processing $$employee_hashref{$eid}->{'Work Email'} ($count/$total)\n";
+		$count++;
 
 		my $itrpt_fn = $$employee_hashref{$eid}->{'First Name'};
 		my $itrpt_pn = $$employee_hashref{$eid}->{'Preferred Name'};
@@ -91,7 +95,7 @@ sub main{
 				print "ITRPT(First Name): $itrpt_fn\n";
 				print "AD(givenName): $ad_gn\n";
 				print "AD(displayName): $ad_dn\n";
-				print "not implemented yet: you must make this change manually in AD\n";
+				print "mismatch detected: you must make this change manually in AD\n";
 				<>;
 			}
 
@@ -112,7 +116,7 @@ sub main{
 				print "ITRPT(Pref Name): $itrpt_pn\n";
 				print "AD(givenName): $ad_gn\n";
 				print "AD(displayName): $ad_dn\n";
-				print "not implemented yet: you must make this change manually in AD\n";
+				print "mismatch detected: you must make this change manually in AD\n";
 				<>;
 			}
 
@@ -126,7 +130,7 @@ sub main{
 		if($itrpt_jt ne $ad_title){
 			print "ITRPT(Job Title): $itrpt_jt\n";
 			print "AD(title): $ad_title\n";
-			print "not implemented yet: you must make this change manually in AD\n";
+			print "mismatch detected: you must make this change manually in AD\n";
 			<>;
 		}
 
@@ -185,7 +189,7 @@ sub main{
 		}
 
 
-		#Location: c-st-physicalDeliveryOfficeName
+		#####Location: c-st-physicalDeliveryOfficeName
 		#
 		my $itrpt_loc = $$employee_hashref{$eid}->{'Location'};
 		my $ad_l = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'l'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'l'} : "l not found in AD";
@@ -228,82 +232,109 @@ sub main{
 		#is first chunk 2 letters long (in country code)? if so, spell it out
 		#is third chunk 'Remote'? if so, l=none, pdon=Remote
 		#is third chunk 'Redwood City (HQ)'? if so , l=Redwood City, pdon=Redwood City (HQ)
-		
-		print "ITRPT(Location): $itrpt_loc\n";
-		print "AD(co): $ad_co\n";
-		print "AD(st): $ad_st\n";
-		print "AD(l): $ad_l\n";
-		print "AD(physicalDeliveryOfficeName): $ad_pdon\n";
-		<>;
 
-		my @count_dashes = split(//,$itrpt_loc);
-		my $count=0;
-		foreach my $char (@count_dashes){
-			if($char eq '-'){
-				$count++;
+		#print "ITRPT(Location): $itrpt_loc\n";
+		#print "AD(co): $ad_co\n";
+		#print "AD(st): $ad_st\n";
+		#print "AD(l): $ad_l\n";
+		#print "AD(physicalDeliveryOfficeName): $ad_pdon\n";
+		#<>;
+
+		my @location = split (/-/,$itrpt_loc);
+
+		#if ITRPT(Location) ends with Remote, pdon should be set to Remote
+		if($location[-1] eq 'Remote'){
+			if($ad_pdon ne 'Remote'){
+				print "AD(physicalDeliveryOfficeName): $ad_pdon (should be 'Remote')\n";
 			}
 		}
 
-		if($count == 1){
-			$itrpt_loc =~ /(.*)-(.*)/;
+		#the first chunk is always the country
+		my $itrpt_loc_country;
 
-			my $itrpt_loc_country = $1;
-			my $itrpt_loc_city = $2;
-
-			#if $itrpt_loc_country is in country code, convert it to full name for pattern matching
-		
-			#hack to make UK work. (UK isnt recognized in code2country but GB is)	
-			if($itrpt_loc_country eq 'UK'){
-				$itrpt_loc_country = 'GB';
-			}
-			
-			if($itrpt_loc_country =~ /\b\w\w\b/){
-				$itrpt_loc_country = code2country($itrpt_loc_country);
-				print "country has been converted: $itrpt_loc_country\n";
-			}
-
-
-			#check if data matches up
-			
-			if(($itrpt_loc_country eq $ad_co) && ($itrpt_loc_city eq $ad_pdon)&&($itrpt_loc_city eq $ad_l)){
-				#everything matches yay!
-			}else{
-				print "ITRPT(Location): $itrpt_loc\n";
-				print "AD(co): $ad_co (should be $itrpt_loc_country)\n";
-				print "AD(l): $ad_l (should be $itrpt_loc_city)\n";
-				print "AD(physicalDeliveryOfficeName): $ad_pdon (should be $itrpt_loc_city)\n";
-				print "mismatch detected: you must make this change manually in AD\n";
-				<>;
-			}
-
-		}elsif($count == 2){
-			$itrpt_loc =~ /(.*)-(.*)-(.*)/;
-
-			my $itrpt_loc_country = $1;
-			my $itrpt_loc_state = $2;
-			my $itrpt_loc_city = $3;
-
-			#if $itrpt_loc_country is in country code, convert it to full name for pattern matching
-			
-			if($itrpt_loc_country =~ /\b\w\w\b/){
-				$itrpt_loc_country = code2country($itrpt_loc_country);
-				print "country has been converted: $itrpt_loc_country\n";
-			}
-
-
-			if(($itrpt_loc_country eq $ad_co)&&($itrpt_loc_city eq $ad_pdon)&&($itrpt_loc_state eq $ad_st)&&($itrpt_loc_city eq $ad_l)){
-				#everything matches
-			}else{
-				print "ITRPT(Location): $itrpt_loc\n";
-				print "AD(co): $ad_co (should be $itrpt_loc_country)\n";
-				print "AD(st): $ad_st (should be $itrpt_loc_state)\n";
-				print "AD(l): $ad_l (should be $itrpt_loc_city)\n";
-				print "AD(physicalDeliveryOfficeName): $ad_pdon (should be $itrpt_loc_city)\n";
-				print "mismatch detected: you must make this change manually in AD\n";
-				<>;
-			}
+		if($location[0] eq 'UK'){
+			$itrpt_loc_country = code2country('GB');
+		}elsif($location[0] =~/\b\w\w\b/){ 
+			$itrpt_loc_country = code2country($location[0]);
 		}else{
-			print "Location field in ITRPT does not conform to known standard. Investigate ITRPT before continuing. $itrpt_loc\n";
+			$itrpt_loc_country = $location[0];
+		}
+
+		if($itrpt_loc_country eq $ad_co){
+			#countries match
+		}else{
+			print "AD(co): $ad_co (should be $itrpt_loc_country)\n";
+			<>;
+		}	
+
+		#if the first chunk is US, second chunk is a state unless it is Remote
+		if(($location[0] eq 'US')&&($location[1] ne 'Remote')){
+			if($location[1] eq $ad_st){
+				#states should match
+			}else{
+				print "AD(st): $ad_st (should be $location[1])\n";
+				<>;
+			}
+		}
+
+		#if the last item is Redwood City (HQ), city should be just 'Redwood City'
+		if($location[-1] eq 'Redwood City (HQ)'){
+			if($ad_l ne 'Redwood City'){
+				print "AD(l): $ad_l (should be 'Redwood City')\n";
+				<>;
+			}
+			#if there are 3 items in @location and last item isnt Remote, then last item is a city
+		}elsif((scalar(@location) == 3) && ($location[-1] ne 'Remote')){
+			if($location[-1] ne $ad_l){
+				print "AD(l): $ad_l (should be $location[-1])\n";
+				<>;
+			}   
+		}
+
+
+		#if there are two items in @location and first item isnt 'US', then 2nd item is a city unless it is 'Remote'
+		if(((scalar(@location)) == 2) && ($location[0] ne 'US') && ($location[1] ne 'Remote')){
+			if($location[1] ne $ad_l){
+				print "AD(l): $ad_l (should be $location[1])\n";
+				<>;
+			}
+		}
+
+
+	#####Manager ID
+
+		my $itrpt_mid = $$employee_hashref{$eid}->{'Manager ID'};
+		my $ad_manager = $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'manager'} ? $$ad{$$employee_hashref{$eid}->{'Work Email'}}->{'manager'} : "manager not found in AD";
+
+		#print "ITRPT(MID): $itrpt_mid\n";
+		#print "AD(manager): $ad_manager\n";
+		#<>;
+
+		#find out which email $itrpt_mid corresponds to
+		my $itrpt_memail = $$employee_hashref{$itrpt_mid}->{'Work Email'};
+
+		#hack to skip the CEO, cuz he doesnt have a manager
+		if(!defined($itrpt_memail) && $eid == 100177){
+			next;
+		}
+
+
+		#derive the dn of manager email (mid) from the step above.	
+		my $itrpt_manager_dn = $$ad{$itrpt_memail}->{'dn'};
+
+		if(!defined($itrpt_manager_dn)){
+			print "could not find the manager. verify that $itrpt_memail is still an active employee.\n";
+			print "AD(manager): $ad_manager (currently set)\n";
+			<>;
+			next;
+		}
+	
+		#we now compare dn's. one is obtained from AD because every employee has a defined manager, expressed in dn.
+		#the other dn is figured out by using the manager id field in the ITRPT report, working out the email that the id corresponds to
+		#then figuring out the dn that goes with that particular email.
+		
+		if($itrpt_manager_dn ne $ad_manager){
+			print "AD(manager): $ad_manager (should be $itrpt_manager_dn)\n";
 			<>;
 		}
 
