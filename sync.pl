@@ -24,6 +24,8 @@ sub main{
 	#gather ad data from AD
 	my $ad = &ad_lookup;
 
+	print Dumper($$ad{$$employee_hashref{100648}->{'Work Email'}});
+
 	#store dn information into $employee_hashref (this is for manager lookup, used later)
 	foreach my $key (keys(%$employee_hashref)){
 
@@ -36,9 +38,6 @@ sub main{
 		}
 	}
 
-	print Dumper($$employee_hashref{100648});
-
-	print Dumper($$ad{$$employee_hashref{100648}->{'Work Email'}});
 
 	#time to do comparisons and updates
 
@@ -175,15 +174,15 @@ sub main{
 
 
 		if($itrpt_hd_dept ne $ad_dept){
-			print "ITRPT(Home Department (dept)): $itrpt_hd_dept\n";
 			print "AD(dept): $ad_dept\n";
+			print "should be: ITRPT(Home Department (dept)): $itrpt_hd_dept\n";
 			print "mismatch detected: you must make this change manually in AD\n";
 			<>;
 		}
 
 		if($itrpt_hd_desc ne $ad_desc){
-			print "ITRPT(Home Department (desc)): $itrpt_hd_desc\n";
 			print "AD(desc): $ad_desc\n";
+			print "should be: ITRPT(Home Department (desc)): $itrpt_hd_desc\n";
 			print "mismatch detected: you must make this change manually in AD\n";
 			<>;
 		}
